@@ -21,10 +21,10 @@
 import sys
 import argparse
 
-from extract_dbc_meta import extract_dbc_meta
-from gen_proto_file import gen_proto_file
-from gen_protocols import gen_protocols
-from gen_vehicle_controller_and_manager import gen_vehicle_controller_and_manager
+from adbctool.extract_dbc_meta import extract_dbc_meta
+from adbctool.gen_proto_file import gen_proto_file
+from adbctool.gen_protocols import gen_protocols
+from adbctool.gen_vehicle_controller_and_manager import gen_vehicle_controller_and_manager
 
 
 def main(args=sys.argv):
@@ -52,7 +52,7 @@ def main(args=sys.argv):
         default="MAB", help="")
     parser.add_argument(
         "-o", "--output_dir", action="store", type=str, required=False,
-        default="output", help="")
+        default="output/", help="")
 
     args = parser.parse_args(args[1:])
 

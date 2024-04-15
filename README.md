@@ -22,5 +22,6 @@ The tool's input is :
 * `generator tool config file`: for an example, a lincoln's is lincoln_conf.yml, detail you can see the example file of lincoln_conf.yml
 
 ```shell
-adbctool -f xxx.dbc -t vehicle_type
+# adbctool -f vehicle.dbc -t vehicle_type
+adbctool -f test/acura_ilx_2016_nidec.dbc -t acura_ilx
 ```

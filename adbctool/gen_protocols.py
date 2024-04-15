@@ -21,8 +21,9 @@
 import os
 import shutil
 import sys
-
 import yaml
+
+from pathlib import Path
 
 
 def gen_report_header(car_type, protocol, output_dir):
@@ -414,6 +415,7 @@ def get_tpl_fmt(tpl_file):
     """
         get fmt from tpl_file
     """
+    tpl_file = Path(__file__).parent.joinpath(tpl_file)
     with open(tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
     fmt = "".join(fmt)
