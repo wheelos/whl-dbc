@@ -6,6 +6,7 @@ You only have to do is to have the dbc file (which is a communication protocol f
 ## How to get vehicle's DBC file
 - [opendbc](https://github.com/commaai/opendbc) is a project that opens the vehicle dbc protocol.
 - [openvehicles](https://docs.openvehicles.com/en/latest/index.html) is an open car project that contains any vehicle information you want to know.
+- [vehicles](https://github.com/daohu527/vehicles) Apollo vehicle protocols based by opendbc.
 
 ## Quick start
 
