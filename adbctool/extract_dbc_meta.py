@@ -20,6 +20,7 @@ import re
 import shlex
 import sys
 import yaml
+import chardet
 
 
 MAX_CAN_ID = 4096000000  # include can extended ID
@@ -62,6 +63,20 @@ def extract_var_info(items):
     return car_var
 
 
+def detect_file_encoding(file_path, default_encoding='utf-8', confidence_threshold=0.5):
+    with open(file_path, 'rb') as f:
+        raw_data = f.read()
+        result = chardet.detect(raw_data)
+
+        encoding = result['encoding']
+        confidence = result['confidence']
+
+        if confidence < confidence_threshold or encoding is None:
+            return default_encoding, confidence
+        else:
+            return encoding, confidence
+
+
 def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
                      sender):
     """
@@ -72,15 +87,27 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
 
     """
     sender_list = map(str, sender_list)
-    with open(dbc_file) as fp:
+
+    # Get the file character encoding
+    encoding, _ = detect_file_encoding(dbc_file)
+
+    with open(dbc_file, encoding=encoding) as fp:
         in_protocol = False
         protocols = {}
         protocol = {}
         p_name = ""
         line_num = 0
+
         for line in fp:
-            items = shlex.split(line)
             line_num = line_num + 1
+            # Split command line
+            try:
+                items = shlex.split(line)
+            except ValueError as e:
+                print(f"Error occurred: {e}")
+                print(f"Line {line_num}: '{input_string}'")
+                raise
+
             if len(items) == 5 and items[0] == "BO_":
                 p_name = items[2][:-1].lower()
                 protocol = {}
