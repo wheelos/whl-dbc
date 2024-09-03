@@ -170,7 +170,7 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
         p_name = ""
 
         try:
-            for line_num, line in enumerate(f):
+            for line_num, line in enumerate(f, start=1):
                 items = shlex.split(line)
 
                 if len(items) == 5 and items[0] == "BO_":
