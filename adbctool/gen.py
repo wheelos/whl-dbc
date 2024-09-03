@@ -67,7 +67,8 @@ def main(args=sys.argv):
     gen_proto_file(protocol_conf_file, proto_dir)
 
     # gen protocol
-    protocol_dir = args.output_dir + "vehicle/" + args.car_type.lower() + "/protocol/"
+    protocol_dir = args.output_dir + "vehicle/" + \
+        args.car_type.lower() + "/protocol/"
     gen_protocols(protocol_conf_file, protocol_dir)
 
     # gen vehicle controller and protocol_manager

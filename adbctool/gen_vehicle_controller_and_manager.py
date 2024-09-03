@@ -25,8 +25,10 @@ import yaml
 
 from pathlib import Path
 
+
 def get_lib_path(file_path):
     return Path(__file__).parent.joinpath(file_path)
+
 
 def gen_vehicle_controller_header(content, output_dir):
     controller_header_tpl_file = get_lib_path("template/controller.h.tpl")
@@ -114,7 +116,8 @@ def gen_vehicle_controller_cpp(content, output_dir):
 
 
 def gen_message_manager_header(content, output_dir):
-    message_manager_header_tpl_file = get_lib_path("template/message_manager.h.tpl")
+    message_manager_header_tpl_file = get_lib_path(
+        "template/message_manager.h.tpl")
     with open(message_manager_header_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
     car_type = content["car_type"]
@@ -130,7 +133,8 @@ def gen_message_manager_header(content, output_dir):
 
 
 def gen_message_manager_cpp(content, output_dir):
-    message_manager_cpp_tpl_file = get_lib_path("template/message_manager.cc.tpl")
+    message_manager_cpp_tpl_file = get_lib_path(
+        "template/message_manager.cc.tpl")
     with open(message_manager_cpp_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
     car_type = content["car_type"]
@@ -175,7 +179,8 @@ def gen_message_manager_cpp(content, output_dir):
 
 
 def gen_vehicle_factory_header(content, output_dir):
-    vehicle_factory_header_tpl_file = get_lib_path("template/vehicle_factory.h.tpl")
+    vehicle_factory_header_tpl_file = get_lib_path(
+        "template/vehicle_factory.h.tpl")
     with open(vehicle_factory_header_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
     car_type = content["car_type"]
@@ -191,7 +196,8 @@ def gen_vehicle_factory_header(content, output_dir):
 
 
 def gen_vehicle_factory_cpp(content, output_dir):
-    vehicle_factory_cpp_tpl_file = get_lib_path("template/vehicle_factory.cc.tpl")
+    vehicle_factory_cpp_tpl_file = get_lib_path(
+        "template/vehicle_factory.cc.tpl")
     with open(vehicle_factory_cpp_tpl_file, 'r') as tpl:
         fmt = tpl.readlines()
     car_type = content["car_type"]

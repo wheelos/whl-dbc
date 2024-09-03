@@ -21,6 +21,7 @@ import shlex
 import sys
 import yaml
 import chardet
+import codecs
 
 
 MAX_CAN_ID = 4096000000  # include can extended ID
@@ -64,6 +65,16 @@ def extract_var_info(items):
 
 
 def detect_file_encoding(file_path, default_encoding='utf-8', confidence_threshold=0.5):
+    """Detect file encoding
+
+    Args:
+        file_path (_type_): _description_
+        default_encoding (str, optional): _description_. Defaults to 'utf-8'.
+        confidence_threshold (float, optional): _description_. Defaults to 0.5.
+
+    Returns:
+        _type_: _description_
+    """
     with open(file_path, 'rb') as f:
         raw_data = f.read()
         result = chardet.detect(raw_data)
@@ -77,6 +88,67 @@ def detect_file_encoding(file_path, default_encoding='utf-8', confidence_thresho
             return encoding, confidence
 
 
+def parse_signal_comment(items, protocols):
+    """
+    Parse a signal comment line from the DBC file.
+    """
+    protocol_id = "%x" % int(items[2])
+    if int(items[2]) > MAX_CAN_ID:
+        return
+    if int(items[2]) > STANDARD_CAN_ID:
+        protocol_id = gen_can_id_extended(protocol_id)
+    for var in protocols[protocol_id]["vars"]:
+        if var["name"] == items[3]:
+            var["description"] = items[4][:-1]
+
+
+def parse_enum_values(items, protocols):
+    """
+    Parse enumeration values from the DBC file.
+    """
+    protocol_id = "%x" % int(items[1])
+    if int(items[1]) > MAX_CAN_ID:
+        return
+    if int(items[1]) > STANDARD_CAN_ID:
+        protocol_id = gen_can_id_extended(protocol_id)
+    for var in protocols[protocol_id]["vars"]:
+        if var["name"] == items[2]:
+            var["type"] = "enum"
+            var["enum"] = {}
+            for idx in range(3, len(items) - 1, 2):
+                enumtype = re.sub(
+                    '\W+', ' ', items[idx + 1]).strip().replace(" ", "_").upper()
+                enumtype = f"{items[2].upper()}_{enumtype}"
+                var["enum"][int(items[idx])] = enumtype
+
+
+def adjust_reserved_keywords(protocols):
+    """
+    Adjust variable names that are reserved C++ keywords.
+    """
+    CPP_RESERVED_KEYWORDS = ['minor', 'major', 'long', 'int']
+    for protocol in protocols.values():
+        for var in protocol["vars"]:
+            if var["name"].lower() in CPP_RESERVED_KEYWORDS:
+                var["name"] = f"MY_{var['name']}"
+
+
+def log_summary(car_type, out_file, protocols):
+    """
+    Log a summary of the parsed protocols.
+    """
+    control_protocol_num = sum(
+        1 for p in protocols.values() if p["protocol_type"] == "control")
+    report_protocol_num = sum(
+        1 for p in protocols.values() if p["protocol_type"] == "report")
+
+    print(
+        f"Extracted car_type: {car_type.upper()}'s protocol meta info to file: {out_file}")
+    print(f"Total parsed protocols: {len(protocols)}")
+    print(f"Control protocols: {control_protocol_num}")
+    print(f"Report protocols: {report_protocol_num}")
+
+
 def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
                      sender):
     """
@@ -86,112 +158,77 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
         5 segments, and segments[0] is "BO_", then begin parse every signal in the following line
 
     """
-    sender_list = map(str, sender_list)
+    sender_list = set(map(str, sender_list))
 
     # Get the file character encoding
     encoding, _ = detect_file_encoding(dbc_file)
 
-    with open(dbc_file, encoding=encoding) as fp:
+    with codecs.open(dbc_file, encoding=encoding) as f:
         in_protocol = False
         protocols = {}
         protocol = {}
         p_name = ""
-        line_num = 0
 
-        for line in fp:
-            line_num = line_num + 1
-            # Split command line
-            try:
+        try:
+            for line_num, line in enumerate(f):
                 items = shlex.split(line)
-            except ValueError as e:
-                print(f"Error occurred: {e}")
-                print(f"Line {line_num}: '{input_string}'")
-                raise
 
-            if len(items) == 5 and items[0] == "BO_":
-                p_name = items[2][:-1].lower()
-                protocol = {}
-                if int(items[1]) > MAX_CAN_ID:
-                    continue
-                protocol["id"] = "%x" % int(items[1])
-                if int(items[1]) > STANDARD_CAN_ID:
-                    protocol["id"] = gen_can_id_extended(protocol["id"])
-                protocol["name"] = "%s_%s" % (p_name, protocol["id"])
-                protocol["sender"] = items[4]
-                if protocol["id"] in black_list:
-                    continue
-                protocol["protocol_type"] = "report"
-                if protocol["id"] in sender_list or protocol["sender"] == sender:
-                    protocol["protocol_type"] = "control"
-                protocol["vars"] = []
-                in_protocol = True
-            elif in_protocol:
-                if len(items) > 3 and items[0] == "SG_":
-                    if items[2] == ":":
-                        var_info = extract_var_info(items)
-                        # current we can't process than 4 byte value
-                        if var_info["len"] <= 32:
-                            protocol["vars"].append(var_info)
-                else:
-                    in_protocol = False
-                    if len(protocol) != 0 and len(protocol["vars"]) != 0 and len(
-                            protocol["vars"]) < 65:
-                        protocols[protocol["id"]] = protocol
-                        # print protocol
-                        protocol = {}
+                if len(items) == 5 and items[0] == "BO_":
+                    p_name = items[2][:-1].lower()
+                    protocol = {}
+                    if int(items[1]) > MAX_CAN_ID:
+                        continue
+                    protocol["id"] = "%x" % int(items[1])
+                    if int(items[1]) > STANDARD_CAN_ID:
+                        protocol["id"] = gen_can_id_extended(protocol["id"])
+                    protocol["name"] = "%s_%s" % (p_name, protocol["id"])
+                    protocol["sender"] = items[4]
+                    if protocol["id"] in black_list:
+                        continue
+                    protocol["protocol_type"] = "report"
+                    if protocol["id"] in sender_list or protocol["sender"] == sender:
+                        protocol["protocol_type"] = "control"
+                    protocol["vars"] = []
+                    in_protocol = True
+                elif in_protocol:
+                    if len(items) > 3 and items[0] == "SG_":
+                        if items[2] == ":":
+                            var_info = extract_var_info(items)
+                            # current we can't process than 4 byte value
+                            if var_info["len"] <= 32:
+                                protocol["vars"].append(var_info)
+                    else:
+                        in_protocol = False
+                        if len(protocol) != 0 and len(protocol["vars"]) != 0 and len(
+                                protocol["vars"]) < 65:
+                            protocols[protocol["id"]] = protocol
+                            # print protocol
+                            protocol = {}
 
-            if len(items) == 5 and items[0] == "CM_" and items[1] == "SG_":
-                protocol_id = "%x" % int(items[2])
-                if int(items[2]) > MAX_CAN_ID:
-                    continue
-                if int(items[2]) > STANDARD_CAN_ID:
-                    protocol_id = gen_can_id_extended(protocol_id)
-                for var in protocols[protocol_id]["vars"]:
-                    if var["name"] == items[3]:
-                        var["description"] = items[4][:-1]
+                if len(items) == 5 and items[0] == "CM_" and items[1] == "SG_":
+                    parse_signal_comment(items, protocols)
 
-            if len(items) > 2 and items[0] == "VAL_":
-                protocol_id = "%x" % int(items[1])
-                if int(items[1]) > MAX_CAN_ID:
-                    continue
-                if int(items[1]) > STANDARD_CAN_ID:
-                    protocol_id = gen_can_id_extended(protocol_id)
-                for var in protocols[protocol_id]["vars"]:
-                    if var["name"] == items[2]:
-                        var["type"] = "enum"
-                        var["enum"] = {}
-                        for idx in range(3, len(items) - 1, 2):
-                            enumtype = re.sub('\W+', ' ', items[idx + 1])
-                            enumtype = enumtype.strip().replace(" ",
-                                                                "_").upper()
-                            enumtype = items[2].upper() + "_" + enumtype
-                            var["enum"][int(items[idx])] = enumtype
+                if len(items) > 2 and items[0] == "VAL_":
+                    parse_enum_values(items, protocols)
 
-        cpp_reserved_key_words = ['minor', 'major', 'long', 'int']
-        for key in protocols:
-            for var in protocols[key]["vars"]:
-                if var["name"].lower() in cpp_reserved_key_words:
-                    var["name"] = "MY_" + var["name"]
+        except (ValueError, UnicodeDecodeError) as e:
+            print(f"Error occurred on line {line_num}: {e}")
+            return False
 
-        # print protocols
-        config = {}
-        config["car_type"] = car_type
-        config["protocols"] = protocols
-        with open(out_file, 'w') as fp_write:
-            fp_write.write(yaml.dump(config))
+        adjust_reserved_keywords(protocols)
 
-        control_protocol_num =\
-            len([key for key in protocols.keys()
-                 if protocols[key]["protocol_type"] == "control"])
-        report_protocol_num =\
-            len([key for key in protocols.keys()
-                 if protocols[key]["protocol_type"] == "report"])
-        print("Extract car_type:%s's protocol meta info to file: %s" % (
-            car_type.upper(), out_file))
-        print("Total parsed protocols: %d" % len(protocols))
-        print("Control protocols: %d" % control_protocol_num)
-        print("Report protocols: %d" % report_protocol_num)
+        # save protocols
+        config = {
+            "car_type": car_type,
+            "protocols": protocols
+        }
+        with open(out_file, 'w') as fp:
+            yaml.dump(config, fp)
+
+        # summary
+        log_summary(car_type, out_file, protocols)
         return True
+
 
 def gen_can_id_extended(str):
     """

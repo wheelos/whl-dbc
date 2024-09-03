@@ -481,6 +481,6 @@ if __name__ == "__main__":
 
     protocol_dir = conf["output_dir"] + "vehicle/" + conf["car_type"].lower(
     ) + "/protocol/"
-    shutil.rmtree(output_dir, True)
-    os.makedirs(output_dir)
+    shutil.rmtree(protocol_dir, True)
+    os.makedirs(protocol_dir)
     gen_protocols(protocol_conf, protocol_dir)
